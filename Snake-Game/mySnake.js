@@ -6,6 +6,12 @@ let domElements = {
     canvasRef: document.querySelector('#canvas'),
     scoreRef: document.querySelector('.score'),
 }
+
+let foodImage = new Image();
+foodImage.src = "images/snakeFood-modified.png";
+// foodImage.style.width = "20px";
+// foodImage.style.height = "20px";
+
 let Directions = {
     up: 1, down: 2, left: 3, right: 4
 }
@@ -90,10 +96,11 @@ function startGame() {
     //First, we need to reset all the data and set the initial snake position
     Game.score = 0;
     Game.food = undefined;
-    Snake.headPosition = { x: 7, y: 1 }
+    Snake.headPosition = { x: 15, y: 1 }
     Snake.direction = Directions.right;
     Snake.body = [
-        { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 }, { x: 5, y: 1 }, { x: 6, y: 1 }, { x: 7, y: 1 }
+        { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 }, { x: 5, y: 1 }, { x: 6, y: 1 }, { x: 7, y: 1 },
+        { x: 8, y: 1 }, { x: 9, y: 1 }, { x: 10, y: 1 }, { x: 11, y: 1 }, { x: 12, y: 1 }, { x: 13, y: 1 }, { x: 14, y: 1 }, { x: 15, y: 1 }
     ]
 
     let interval = window.setInterval(() => {
@@ -114,11 +121,13 @@ function startGame() {
 function makeMove() {
     checkSnakeDirection();
     changeSnakePosition();
-
     checkIfSnakeDies();
     updateScore();
     clearCanvas();
     drawSnake();
+    placeFood();
+    drawFood();
+    chechIfFoodWasEaten();
 }
 
 function checkSnakeDirection() {
@@ -136,6 +145,8 @@ function checkSnakeDirection() {
             } else if (e.code === "ArrowUp" && Snake.direction !== Directions.down) {
                 Snake.newDirection = Directions.up;
             }
+
+            // console.log("1");
         }
     })
 }
@@ -145,6 +156,7 @@ function changeSnakePosition() {
         Snake.direction = Snake.newDirection;
         //Once we've updated the next direction, we set it to undefined, waiting for new direction from the listener
         Snake.newDirection = undefined;
+
     }
 
     let sX = Snake.headPosition.x;
@@ -164,6 +176,7 @@ function changeSnakePosition() {
     //We add new head block and remove one block from the tail
     Snake.body.push(Snake.headPosition);
     Snake.body.shift();
+    console.log("2");
 }
 
 //We check both scenarios - hitting itself or going outside the game area.
@@ -174,6 +187,7 @@ function checkIfSnakeDies() {
     //if snake hits left wall / right wall / bottom / top
     if (x < 0 || x >= Game.blockSize.width - 2 || y < 0 || y >= Game.blockSize.height - 2) {
         Game.state = GameState.GameOver;
+        console.log("3.1");
         return;
     }
 
@@ -186,6 +200,7 @@ function checkIfSnakeDies() {
             && Snake.headPosition.y === currentBlock.y) {
 
             Game.state = GameState.GameOver;
+            console.log("3.2");
             return;
         }
     }
@@ -202,7 +217,7 @@ function clearCanvas() {
 function drawSnake() {
     Game.context.fillStyle = 'black';
     // debugger;
-    
+
     let width = Game.blockSize.width + 1;
     let height = Game.blockSize.height + 1;
 
@@ -217,5 +232,65 @@ function drawSnake() {
         //Like a border style for each of the snake blocks(body). Looks better :) 
         Game.context.strokeStyle = "darkblue";
         Game.context.strokeRect(x, y, width, height);
+    }
+    console.log("4");
+}
+
+function placeFood() {
+    //We keep the loop until we find a free block on the game area where we can place the food.
+    while (!Game.food) {
+
+        let foodX = Math.floor(Math.random() * (Game.blockSize.width - 2));
+        let foodY = Math.floor(Math.random() * (Game.blockSize.height - 2));
+
+        let isFoodOnSnake = Snake.body.some(z => z.x === foodX && z.y === foodY)
+
+        if (!isFoodOnSnake) {
+            Game.food = {
+                x: foodX,
+                y: foodY
+            }
+
+            console.log("food Place - 5");
+        }
+
+
+        // for (let i = 0; i < Snake.body.length; i++) {
+        //     if (Snake.body[i].x !== foodX && Snake.body[i].y !== foodY) {
+        //         Game.food = {
+        //             x: foodX,
+        //             y: foodY
+        //         }
+        //         console.log("food Place - 5");
+        //     }
+        // }
+    }
+}
+
+function drawFood() {
+    // Game.context.drawImage(foodImage, 26, 26, 50, 30);
+    // console.log(Game.food.x);
+    // console.log(Game.food.y);
+
+    Game.context.fillStyle = 'red';
+    let width = Game.blockSize.width + 1;
+    let height = Game.blockSize.height + 1;
+    let x = Game.food.x * (width + 1);
+    let y = Game.food.y * (height + 1);
+
+    Game.context.fillRect(x, y, width, height);
+    console.log("draw food - 6");
+}
+
+function chechIfFoodWasEaten() {
+    if (Snake.headPosition.x === Game.food.x
+        && Snake.headPosition.y === Game.food.y) {
+        Game.score += 1;
+        Game.food = undefined;
+
+        // duplicate block at tail of snake
+        Snake.body.unshift(Snake.body[0]);
+        console.log("7.2 - add food");
+
     }
 }
