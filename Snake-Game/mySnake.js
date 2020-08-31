@@ -1,31 +1,51 @@
 let domElements = {
+    startGameArea: document.querySelector("body > div.infoDashboard > div"),
     textLineFirst: document.querySelector('.line-first'),
     textLineSecond: document.querySelector('.line-second'),
     textLineThird: document.querySelector('.line-third'),
     infoWrapperRef: document.querySelector('.infoDashboard'),
     canvasRef: document.querySelector('#canvas'),
     scoreRef: document.querySelector('.score'),
+    chooseSpeedOptionsRef: document.querySelector('body > div.additionalOptions > div.dropdown'),
+    currentSpeedRef: document.querySelector('body > div.additionalOptions > div.current-speed > a'),
+    goThroughWallCheckBoxsRef: document.querySelector("#walls")
 }
 
-let foodImage = new Image();
+domElements.chooseSpeedOptionsRef.addEventListener('click', checkSpeedChoice);
+
+
+const foodImage = new Image();
 foodImage.src = "images/modifiedApple.png";
+const eatAnAplleSound = new Audio();
+eatAnAplleSound.src = "sounds/eatAnApple.mp3";
+const gameOverSound = new Audio();
+gameOverSound.src = "sounds/gameOver.mp3"
 
 let Directions = {
-    up: 1, 
-    down: 2, 
-    left: 3, 
+    up: 1,
+    down: 2,
+    left: 3,
     right: 4
 }
 
 let GameState =
 {
-    Start: 1, 
-    Playing: 2, 
+    Start: 1,
+    Playing: 2,
     GameOver: 3
+}
+let SpeedOptions = {
+    baseSpeedIndex: 120,
+    speedType: {
+        normal: "normal",
+        fast: "fast",
+        increasing: "increasing"
+    }
 }
 
 let Game = {
     score: 0,
+    speed: SpeedOptions.speedType.normal,
     context: undefined,
     state: GameState.Playing,
     blockSize: {
@@ -51,10 +71,10 @@ window.onload = initializeGame;
 function initializeGame(e) {
     Game.context = domElements.canvasRef.getContext('2d');
     Game.state = GameState.Start;
-    // updateGameState();
+
 
     //After click we will always be in state "Playing"
-    document.addEventListener('click', (x) => {
+    domElements.startGameArea.addEventListener('click', function () {
 
         if (Game.state !== GameState.Playing) {
             Game.state = GameState.Playing
@@ -62,8 +82,6 @@ function initializeGame(e) {
             startGame();
         }
     });
-
-
 }
 
 function updateGameState(e) {
@@ -74,7 +92,6 @@ function updateGameState(e) {
             domElements.textLineFirst.textContent = 'START NEW GAME';
             domElements.textLineSecond.textContent = '';
             domElements.textLineThird.textContent = '';
-            // console.log('GAMESTATE START WORKS');
             break;
 
         //No info should be shown on the display
@@ -87,11 +104,11 @@ function updateGameState(e) {
         case (GameState.GameOver):
             domElements.infoWrapperRef.style.display = 'block';
             domElements.textLineFirst.textContent = 'GAME OVER';
-            domElements.textLineSecond.textContent = 'click to start new game';
-            domElements.textLineThird.textContent = 'score: ' + Game.score;
+            domElements.textLineSecond.textContent = 'Your score: ' + Game.score;
+            domElements.textLineThird.textContent = 'Click here to start new game';
+            gameOverSound.play();
             break;
     }
-
 }
 
 //Reset all the data and set the initial snake position
@@ -100,12 +117,7 @@ function startGame() {
     Game.food = undefined;
     Snake.headPosition = { x: 2, y: 1 }
     Snake.direction = Directions.right;
-    Snake.body = [
-        { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }
-        //For testing purposes
-        // , { x: 3, y: 1 }, { x: 4, y: 1 }, { x: 5, y: 1 }, { x: 6, y: 1 }, { x: 7, y: 1 },
-        // { x: 8, y: 1 }, { x: 9, y: 1 }, { x: 10, y: 1 }, { x: 11, y: 1 }, { x: 12, y: 1 }, { x: 13, y: 1 }, { x: 14, y: 1 }, { x: 15, y: 1 }
-    ]
+    Snake.body = [{ x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }]
 
     let interval = window.setInterval(() => {
         makeMove();
@@ -114,14 +126,39 @@ function startGame() {
             window.clearInterval(interval);
             updateGameState();
         }
-    }, 120)
+    }, setGameSpeed())
+}
+
+//After user's choice, we set the interval time accordingly
+function setGameSpeed() {
+    switch (Game.speed) {
+        case SpeedOptions.speedType.normal: return SpeedOptions.baseSpeedIndex;
+        case SpeedOptions.speedType.fast: return SpeedOptions.baseSpeedIndex * 0.70;
+        case SpeedOptions.speedType.increasing: return SpeedOptions.baseSpeedIndex *= 0.98;
+    }
+}
+
+//Check which of the 3 options has been selected and adjust the game speed values
+function checkSpeedChoice(e) {
+    let choice = e.target.textContent;
+
+    switch (choice.toLowerCase()) {
+        case SpeedOptions.speedType.normal:
+            Game.speed = SpeedOptions.speedType.normal;
+            domElements.currentSpeedRef.textContent = Game.speed;
+            break;
+        case SpeedOptions.speedType.fast:
+            Game.speed = SpeedOptions.speedType.fast;
+            domElements.currentSpeedRef.textContent = Game.speed;
+            break;
+        case SpeedOptions.speedType.increasing:
+            Game.speed = SpeedOptions.speedType.increasing;
+            domElements.currentSpeedRef.textContent = Game.speed;
+            break;
+    }
 }
 //TODO : add the following functionality
-// - apple -> draw/remove
-// - modify the snake after it gets an apple
-// - option buttons: speed up the game / go through walls / 
-// - background music
-// - update the score dashboard
+// - options : go through walls 
 function makeMove() {
     checkSnakeDirection();
     changeSnakePosition();
@@ -252,7 +289,7 @@ function placeFood() {
 }
 
 function drawFood() {
-    
+
     let width = Game.blockSize.width + 1;
     let height = Game.blockSize.height + 1;
     let x = Game.food.x * (width + 1);
@@ -268,9 +305,8 @@ function chechIfFoodWasEaten() {
 
         Game.score += 1;
         Game.food = undefined;
-
+        eatAnAplleSound.play();
         // duplicate block at tail of snake
         Snake.body.unshift(Snake.body[0]);
-        console.log("7.2 - add food");
     }
 }
