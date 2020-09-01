@@ -1,8 +1,8 @@
 let domElements = {
-    startGameArea: document.querySelector("body > div.infoDashboard > div"),
-    textLineFirst: document.querySelector('.line-first'),
-    textLineSecond: document.querySelector('.line-second'),
-    textLineThird: document.querySelector('.line-third'),
+    startGameAreaRef: document.querySelector("body > div.infoDashboard > div"),
+    textLineFirstRef: document.querySelector('.line-first'),
+    textLineSecondRef: document.querySelector('.line-second'),
+    textLineThirdRef: document.querySelector('.line-third'),
     infoWrapperRef: document.querySelector('.infoDashboard'),
     canvasRef: document.querySelector('#canvas'),
     scoreRef: document.querySelector('.score'),
@@ -12,7 +12,6 @@ let domElements = {
 }
 
 domElements.chooseSpeedOptionsRef.addEventListener('click', checkSpeedChoice);
-
 
 const foodImage = new Image();
 foodImage.src = "images/modifiedApple.png";
@@ -72,9 +71,8 @@ function initializeGame(e) {
     Game.context = domElements.canvasRef.getContext('2d');
     Game.state = GameState.Start;
 
-
     //After click we will always be in state "Playing"
-    domElements.startGameArea.addEventListener('click', function () {
+    domElements.startGameAreaRef.addEventListener('click', function () {
 
         if (Game.state !== GameState.Playing) {
             Game.state = GameState.Playing
@@ -89,9 +87,9 @@ function updateGameState(e) {
         case (GameState.Start):
             //This will be shown on initially 
             domElements.infoWrapperRef.style.display = 'block';
-            domElements.textLineFirst.textContent = 'START NEW GAME';
-            domElements.textLineSecond.textContent = '';
-            domElements.textLineThird.textContent = '';
+            domElements.textLineFirstRef.textContent = 'START NEW GAME';
+            domElements.textLineSecondRef.textContent = '';
+            domElements.textLineThirdRef.textContent = '';
             break;
 
         //No info should be shown on the display
@@ -103,9 +101,9 @@ function updateGameState(e) {
         //Unhide the div wrapper and show the final result/score
         case (GameState.GameOver):
             domElements.infoWrapperRef.style.display = 'block';
-            domElements.textLineFirst.textContent = 'GAME OVER';
-            domElements.textLineSecond.textContent = 'Your score: ' + Game.score;
-            domElements.textLineThird.textContent = 'Click here to start new game';
+            domElements.textLineFirstRef.textContent = 'GAME OVER';
+            domElements.textLineSecondRef.textContent = 'Your score: ' + Game.score;
+            domElements.textLineThirdRef.textContent = 'Click here to start new game';
             gameOverSound.play();
             break;
     }
@@ -138,7 +136,7 @@ function setGameSpeed() {
     }
 }
 
-//Check which of the 3 options has been selected and adjust the game speed values
+//Check which of the 3 options *normal/fast/increasing* has been selected and adjust the game speed values
 function checkSpeedChoice(e) {
     let choice = e.target.textContent;
 
@@ -157,8 +155,6 @@ function checkSpeedChoice(e) {
             break;
     }
 }
-//TODO : add the following functionality
-// - options : go through walls 
 function makeMove() {
     checkSnakeDirection();
     changeSnakePosition();
@@ -168,7 +164,7 @@ function makeMove() {
     drawSnake();
     placeFood();
     drawFood();
-    chechIfFoodWasEaten();
+    checkIfFoodWasEaten();
 }
 
 function checkSnakeDirection() {
@@ -219,16 +215,28 @@ function changeSnakePosition() {
 
 //We check both scenarios - hitting itself or going outside the game area.
 function checkIfSnakeDies() {
-    let x = Snake.headPosition.x;
-    let y = Snake.headPosition.y;
+    let sX = Snake.headPosition.x;
+    let sY = Snake.headPosition.y;
+    let isSnakeHeadOutsideTheGameArea = sX < 0 || sY < 0 || sX >= Game.blockSize.width - 2 || sY >= Game.blockSize.height - 2;
 
-    //if snake hits left wall / right wall / bottom / top
-    if (x < 0 || x >= Game.blockSize.width - 2 || y < 0 || y >= Game.blockSize.height - 2) {
-        Game.state = GameState.GameOver;
-        return;
+    //Check if the user has clicked on "Go through walls" option
+    let canGoThroughWalls = domElements.goThroughWallCheckBoxsRef.checked === true;
+    //The snake dies when hits a wall
+    if (!canGoThroughWalls) {
+        //if snake hits left wall / right wall / bottom / top
+        if (isSnakeHeadOutsideTheGameArea) {
+            Game.state = GameState.GameOver;
+            return;
+        }
+    } else {
+        //The snake is allowed to go through walls. In this case we should change the head position before next iteration
+        if (isSnakeHeadOutsideTheGameArea) {
+            changeSnakeHeadPosition(sX, sY);
+            changeSnakePosition();
+        }
     }
 
-    //if the snake hits itself
+    //if the snake hits itself, it always dies 
     for (var i = 0; i < Snake.body.length - 1; i++) {
 
         let currentBlock = Snake.body[i];
@@ -240,6 +248,7 @@ function checkIfSnakeDies() {
             return;
         }
     }
+
 }
 
 function updateScore() {
@@ -299,7 +308,7 @@ function drawFood() {
 }
 
 //If the snake hits an apple, we adjust the score and clear the food coordinates
-function chechIfFoodWasEaten() {
+function checkIfFoodWasEaten() {
     if (Snake.headPosition.x === Game.food.x
         && Snake.headPosition.y === Game.food.y) {
 
@@ -308,5 +317,33 @@ function chechIfFoodWasEaten() {
         eatAnAplleSound.play();
         // duplicate block at tail of snake
         Snake.body.unshift(Snake.body[0]);
+    }
+}
+
+function changeSnakeHeadPosition(sX, sY) {
+    //hitting the left wall - the snake should appear on the right        
+    if (sX < 0) {
+        sX = Game.blockSize.width - 2;
+        isSnakeHeadOutsideTheGameArea = true;
+    }
+    //hitting the right wall - the snake should appear on the left
+    else if (sX >= Game.blockSize.width - 2) {
+        sX = -1;
+        isSnakeHeadOutsideTheGameArea = true;
+    }
+    //hitting the top - the snake should appear on the bottom
+    else if (sY < 0) {
+        sY = Game.blockSize.height - 2;
+        isSnakeHeadOutsideTheGameArea = true;
+    }
+    /*hitting the bottom - the snake should appear on the top. It cause a collision when switching directions right after passing a wall so we 
+     set sX and sY to index -1 and call changeSnakePosition. */
+    else if (sY >= Game.blockSize.height - 2) {
+        sY = -1;
+        isSnakeHeadOutsideTheGameArea = true;
+    }
+    Snake.headPosition = {
+        x: sX,
+        y: sY
     }
 }
